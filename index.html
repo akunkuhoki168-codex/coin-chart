@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.1" />
+  <meta name="app-version" content="7.2" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>PUMP/USDT — Binance Spot</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
-  <script src="vendor/lightweight-charts.standalone.production.js?v=7.1"></script>
+  <script src="vendor/lightweight-charts.standalone.production.js?v=7.2"></script>
   <script>
     window.__chartLib = { tried: ["vendor"], ok: null };
     if (typeof LightweightCharts !== "undefined") window.__chartLib.ok = "vendor";
@@ -266,7 +266,7 @@
     }
     #tf-row {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 6px;
       flex: 1;
       min-width: 0;
@@ -293,10 +293,99 @@
       border-color: var(--accent);
       color: var(--accent);
     }
-    #btn-filters-tf {
+    #btn-filters-tf, #btn-backtest-48h {
       flex: 0 0 auto;
       border-radius: 10px;
     }
+    #backtest-panel {
+      margin: 0 10px 8px;
+      padding: 8px 10px 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 12px;
+      flex: 0 0 auto;
+      max-height: min(56vh, 500px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    #backtest-panel[hidden] { display: none !important; }
+    .bt-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .bt-title { font-size: 13px; font-weight: 700; }
+    .bt-sub { font-size: 11px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bt-opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .bt-opts .check-row { margin: 0; font-size: 12px; }
+    .bt-fee { color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .bt-fee input {
+      width: 58px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+    .bt-status { font-size: 11px; color: var(--muted); }
+    .bt-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    @media (max-width: 420px) {
+      .bt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .bt-metric {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 6px 7px;
+      min-width: 0;
+    }
+    .bt-metric .k { display: block; font-size: 10px; color: var(--muted); }
+    .bt-metric .v { display: block; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .bt-metric .v.up { color: var(--up); }
+    .bt-metric .v.down { color: var(--down); }
+    .bt-ideal { font-size: 11px; color: var(--muted); line-height: 1.35; }
+    .bt-ideal strong { color: var(--text); }
+    .bt-trades {
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding-bottom: 2px;
+    }
+    .bt-trade {
+      display: grid;
+      grid-template-columns: 78px 36px 1fr auto;
+      gap: 6px;
+      padding: 4px 0;
+      border-top: 1px solid var(--border);
+      align-items: baseline;
+    }
+    .bt-trade-head {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      border-top: 0;
+      padding-top: 2px;
+    }
+    .bt-trade .side-long { color: var(--up); font-weight: 700; }
+    .bt-trade .side-short { color: var(--down); font-weight: 700; }
     #legend {
       padding: 0 12px 6px;
       font-size: 11px;
@@ -663,7 +752,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.1 swing buy-sell + deep links -->
+  <!-- coin-chart v7.2 swing buy-sell + 48h backtest -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -692,8 +781,24 @@
       <div id="last-signal">Last: —</div>
       <div id="tf-bar">
         <div id="tf-row"></div>
-        <button type="button" class="chip" id="btn-backtest-48h">⏱ Backtest 48H</button>
+        <button type="button" class="chip" id="btn-backtest-48h" title="Backtest the last 48 hours" aria-label="Backtest 48 hours">48h</button>
         <button type="button" class="chip" id="btn-filters-tf">Filters</button>
+      </div>
+      <div id="backtest-panel" hidden>
+        <div class="bt-head">
+          <div class="bt-title">Backtest 48h</div>
+          <span id="bt-pair" class="bt-sub"></span>
+          <button type="button" class="icon-btn" id="bt-close" aria-label="Close backtest">×</button>
+        </div>
+        <div class="bt-opts">
+          <label class="check-row"><input type="checkbox" id="bt-long-only" /> Long only</label>
+          <label class="bt-fee">Fee <input id="bt-fee" type="number" min="0" max="5" step="0.01" value="0.1" /> %/side</label>
+          <label class="check-row"><input type="checkbox" id="bt-marks" /> Mark trades</label>
+        </div>
+        <div id="bt-status" class="bt-status">Enter at the confirmation close — no lookahead.</div>
+        <div id="bt-summary" class="bt-grid"></div>
+        <div id="bt-ideal" class="bt-ideal"></div>
+        <div id="bt-trades" class="bt-trades"></div>
       </div>
       <div id="legend">Hover a bar for OHLCV</div>
       <div id="error"></div>
@@ -735,7 +840,7 @@
         <div class="sheet-title-row">
           <div class="sheet-title">Settings</div>
         </div>
-        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.1 · Swing BUY / SELL</div>
+        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.2 · Swing BUY / SELL · 48h backtest</div>
       </div>
       <div class="list" id="settings-body"></div>
     </section>
@@ -776,7 +881,7 @@
       ready: false, errors: [], live: false, trades: 0, symbol: "PUMPUSDT",
       coinsLoaded: false, coinCount: 0, marketLive: false,
       signals: 0, markers: 0, view: "chart", scanDone: 0, switched: [],
-      version: "7.1", mode: null, restBase: null, wsHost: null, polls: 0,
+      version: "7.2", mode: null, restBase: null, wsHost: null, polls: 0,
       lastError: null, restTried: [], restFailed: [], wsTried: [], wsState: "idle",
       lib: (window.__chartLib && window.__chartLib.ok) || null,
       connectSince: Date.now()
@@ -789,6 +894,7 @@
         if (el) el.className = "live-pill " + kind;
         if (tx) tx.textContent = text;
         window.__pumpStatus.live = kind === "live";
+        if (kind === "live") window.__pumpStatus.everLive = true;
       } catch (e) {}
     }
     function logError(err) {
@@ -806,10 +912,9 @@
     window.addEventListener("error", function (e) { logError(e.error || e.message); });
     window.addEventListener("unhandledrejection", function (e) { logError(e.reason || "unhandled rejection"); });
     setTimeout(function () {
-      if (window.__pumpStatus && window.__pumpStatus.live) return;
+      if (window.__pumpStatus && (window.__pumpStatus.live || window.__pumpStatus.everLive)) return;
       var tx = document.getElementById("status-text");
       var cur = tx ? tx.textContent : "";
-      if (window.__pumpStatus.live) return;
       if (!cur || cur === "Connecting" || cur.indexOf("Connecting") === 0) {
         var reason = window.__pumpStatus.lastError || (!window.__pumpStatus.restBase ? "no REST yet" : "waiting for data");
         if (String(reason).length > 42) reason = String(reason).slice(0, 42) + "…";
@@ -842,7 +947,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.1";
+    var APP_VERSION = "7.2";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -871,7 +976,8 @@
       filters: "coin-chart:filters",
       indicators: "coin-chart:indicators",
       sort: "coin-chart:sort",
-      restBase: "coin-chart:restBase"
+      restBase: "coin-chart:restBase",
+      backtest: "coin-chart:backtest"
     };
 
     function defaultFilters() {
@@ -992,6 +1098,15 @@
     window.__pumpStatus.symbol = state.symbol;
     window.__pumpStatus.version = APP_VERSION;
     if (state.restBase) window.__pumpStatus.restBase = state.restBase;
+    (function initBacktestPrefs() {
+      var opts = loadBacktestOpts();
+      state.btLongOnly = opts.longOnly;
+      state.btFee = opts.fee;
+      state.btShowMarks = opts.showMarks;
+      state.btResult = null;
+      state.btMarkers = [];
+      state.btOpenPref = opts.open;
+    })();
 
     function fetchWithTimeout(url, timeout) {
       timeout = timeout || REST_TIMEOUT;
@@ -1162,11 +1277,17 @@
     }
     function resetSettings() {
       try {
-        [LS.filters, LS.indicators, LS.sort, LS.restBase].forEach(function (k) {
+        [LS.filters, LS.indicators, LS.sort, LS.restBase, LS.backtest].forEach(function (k) {
           try { localStorage.removeItem(k); } catch (e) {}
         });
       } catch (e) {}
-      try { location.reload(); } catch (e2) { location.href = location.pathname + "?v=" + APP_VERSION; }
+      try {
+        var q = "v=" + encodeURIComponent(APP_VERSION);
+        if (state && state.symbol && state.tf) {
+          q = "symbol=" + encodeURIComponent(state.symbol) + "&tf=" + encodeURIComponent(state.tf) + "&" + q;
+        }
+        location.href = (location.pathname || "/") + "?" + q;
+      } catch (e2) { location.reload(); }
     }
     function persistFilters() { saveJson(LS.filters, filters); }
     function persistIndicators() {
@@ -1218,37 +1339,12 @@
       }
     });
     document.getElementById("btn-filters").addEventListener("click", openFilters);
-
-    document.getElementById("btn-backtest-48h").addEventListener("click", function () {
-      var candles = state.candles || [];
-      if (candles.length < 3) { alert("Not enough candle history to run the 48-hour backtest."); return; }
-      var endTime = candles[candles.length - 1].time;
-      var startTime = endTime - 48 * 60 * 60;
-      var sigs = getActiveSignals(candles, false).filter(function (s) {
-        var t = isFinite(s.time) ? s.time : (candles[s.index] && candles[s.index].time);
-        return !s.provisional && t >= startTime && t <= endTime;
-      });
-      var horizons = [5, 10, 20], lines = [];
-      horizons.forEach(function (n) {
-        var valid = sigs.filter(function (s) {
-          var ix = isFinite(s.confirmIndex) ? s.confirmIndex : s.index;
-          return isFinite(ix) && ix + n < candles.length && candles[ix + n].time <= endTime;
-        });
-        var good = 0;
-        valid.forEach(function (s) {
-          var ix = isFinite(s.confirmIndex) ? s.confirmIndex : s.index;
-          var move = candles[ix + n].close - candles[ix].close;
-          if ((s.dir === "bull" && move > 0) || (s.dir === "bear" && move < 0)) good++;
-        });
-        lines.push(n + "-candle outcome: " + (valid.length ? (good / valid.length * 100).toFixed(1) + "% favorable (" + good + "/" + valid.length + ")" : "not enough completed outcomes"));
-      });
-      var buys = sigs.filter(function (s) { return s.dir === "bull"; }).length;
-      var sells = sigs.filter(function (s) { return s.dir === "bear"; }).length;
-      alert("48-HOUR SIGNAL BACKTEST\\n" + state.symbol + " · " + state.tf + "\\n" +
-        "Confirmed signals: " + sigs.length + " (BUY " + buys + " / SELL " + sells + ")\\n\\n" +
-        lines.join("\\n") + "\\n\\nDirectional hit rate only; excludes fees, funding, slippage and position sizing.");
-    });
-\n    document.getElementById("btn-filters-tf").addEventListener("click", openFilters);
+    document.getElementById("btn-filters-tf").addEventListener("click", openFilters);
+    document.getElementById("btn-backtest-48h").addEventListener("click", toggleBacktestPanel);
+    document.getElementById("bt-close").addEventListener("click", closeBacktestPanel);
+    document.getElementById("bt-long-only").addEventListener("change", onBacktestOptsChange);
+    document.getElementById("bt-marks").addEventListener("change", onBacktestOptsChange);
+    document.getElementById("bt-fee").addEventListener("change", onBacktestOptsChange);
     document.getElementById("btn-close-filters").addEventListener("click", closeFilters);
     document.getElementById("backdrop").addEventListener("click", closeFilters);
 
@@ -1613,6 +1709,7 @@
       }
       renderIndicators();
       refreshSignals();
+      scheduleBacktestRefresh();
     }
     function upsertLast(bar) {
       var rows = state.candles;
@@ -2115,6 +2212,9 @@
             text: prov.dir === "bull" ? "BUY?" : "SELL?"
           });
         }
+      }
+      if (state.btShowMarks && state.btMarkers && state.btMarkers.length) {
+        state.btMarkers.forEach(function (m) { umarkers.push(m); });
       }
       umarkers.sort(function (a, b) { return a.time - b.time; });
       candleSeries.setMarkers(umarkers);
@@ -2668,6 +2768,361 @@
       closeMarketWs();
     });
 
+
+    function defaultBacktestOpts() {
+      return { longOnly: false, fee: 0.1, showMarks: false, open: false };
+    }
+    function loadBacktestOpts() {
+      var d = defaultBacktestOpts(), raw;
+      try { raw = loadJson(LS.backtest, null); } catch (e) { raw = null; }
+      if (raw && typeof raw === "object") {
+        if (typeof raw.longOnly === "boolean") d.longOnly = raw.longOnly;
+        if (isFinite(Number(raw.fee)) && Number(raw.fee) >= 0 && Number(raw.fee) <= 5) d.fee = Number(raw.fee);
+        if (typeof raw.showMarks === "boolean") d.showMarks = raw.showMarks;
+        if (typeof raw.open === "boolean") d.open = raw.open;
+      }
+      return d;
+    }
+    function persistBacktestOpts() {
+      saveJson(LS.backtest, {
+        longOnly: !!state.btLongOnly,
+        fee: state.btFee,
+        showMarks: !!state.btShowMarks,
+        open: !document.getElementById("backtest-panel").hidden
+      });
+    }
+    function tradeReturn(side, entry, exitPx, fee) {
+      if (!(entry > 0) || !(exitPx > 0)) return 0;
+      if (side === "long") return (exitPx * (1 - fee)) / (entry * (1 + fee)) - 1;
+      return (entry * (1 - fee) - exitPx * (1 + fee)) / (entry * (1 + fee));
+    }
+    function fmtPctSigned(n) {
+      if (typeof n !== "number" || !isFinite(n)) return "—";
+      return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+    }
+    function simulateFlipTrades(candles, sigs, startTime, endTime, lastClosed, longOnly, feeFrac) {
+      var trades = [], pos = null, i, s, ix, px, t, want;
+      function closePos(exitPx, exitTime, reason) {
+        var ret;
+        if (!pos) return;
+        ret = tradeReturn(pos.side, pos.entry, exitPx, feeFrac);
+        trades.push({
+          side: pos.side, entry: pos.entry, exit: exitPx,
+          entryTime: pos.entryTime, exitTime: exitTime,
+          ret: ret, reason: reason
+        });
+        pos = null;
+      }
+      sigs = (sigs || []).slice().filter(function (s) {
+        return !s.provisional && isFinite(s.confirmTime) && s.confirmTime >= startTime && s.confirmTime <= endTime;
+      }).sort(function (a, b) { return a.confirmIndex - b.confirmIndex; });
+      for (i = 0; i < sigs.length; i++) {
+        s = sigs[i];
+        ix = s.confirmIndex;
+        if (!isFinite(ix) || ix > lastClosed || ix < 0) continue;
+        px = candles[ix].close;
+        t = candles[ix].time;
+        want = s.dir === "bull" ? "long" : "short";
+        if (longOnly) {
+          if (want === "long") {
+            if (pos && pos.side === "long") continue;
+            if (pos) closePos(px, t, "flip");
+            pos = { side: "long", entry: px, entryTime: t };
+          } else if (pos && pos.side === "long") {
+            closePos(px, t, "sell-exit");
+          }
+        } else {
+          if (pos && pos.side === want) continue;
+          if (pos) closePos(px, t, "flip");
+          pos = { side: want, entry: px, entryTime: t };
+        }
+      }
+      if (pos) closePos(candles[lastClosed].close, candles[lastClosed].time, "eod");
+      return { trades: trades, signals: sigs.length };
+    }
+    function summarizeTrades(trades, startPx, endPx) {
+      var eq = 1, peak = 1, maxDd = 0, i, ret, dd, wins = 0, rets = [], best = null, worst = null, bh = 0;
+      for (i = 0; i < trades.length; i++) {
+        ret = trades[i].ret;
+        rets.push(ret);
+        eq *= (1 + ret);
+        if (eq > peak) peak = eq;
+        dd = peak ? (peak - eq) / peak : 0;
+        if (dd > maxDd) maxDd = dd;
+        if (ret > 0) wins++;
+        if (best === null || ret > best) best = ret;
+        if (worst === null || ret < worst) worst = ret;
+      }
+      if (startPx > 0) bh = endPx / startPx - 1;
+      return {
+        n: trades.length,
+        wins: wins,
+        winRate: trades.length ? (wins / trades.length) * 100 : null,
+        totalPct: (eq - 1) * 100,
+        avgPct: rets.length ? (rets.reduce(function (a, b) { return a + b; }, 0) / rets.length) * 100 : null,
+        maxDD: maxDd * 100,
+        best: best === null ? null : best * 100,
+        worst: worst === null ? null : worst * 100,
+        bhPct: bh * 100,
+        equity: eq
+      };
+    }
+    function backtestMarkersFrom(trades) {
+      var marks = [], taken = {}, i, tr, text, col, pos;
+      for (i = 0; i < trades.length; i++) {
+        tr = trades[i];
+        text = tr.side === "long" ? "IN L" : "IN S";
+        col = tr.side === "long" ? "#f0b90b" : "#c994e0";
+        pos = tr.side === "long" ? "belowBar" : "aboveBar";
+        if (!taken[tr.entryTime]) {
+          marks.push({ time: tr.entryTime, position: pos, color: col, shape: "circle", text: text });
+          taken[tr.entryTime] = true;
+        }
+        if (tr.reason === "eod" && !taken[tr.exitTime]) {
+          marks.push({ time: tr.exitTime, position: "aboveBar", color: "#848e9c", shape: "circle", text: "X" });
+          taken[tr.exitTime] = true;
+        }
+      }
+      return marks;
+    }
+    function mergeCandleSets(a, b) {
+      var seen = {}, out = [], i, c, all = (a || []).concat(b || []);
+      all.sort(function (x, y) { return x.time - y.time; });
+      for (i = 0; i < all.length; i++) {
+        c = all[i];
+        if (!c || seen[c.time]) continue;
+        seen[c.time] = true;
+        out.push(c);
+      }
+      return out;
+    }
+    async function fetchKlinesPaginated(symbol, tf, minStart, minBars) {
+      var all = [], endMs = null, guard = 0, res, raw, batch, oldest;
+      while (guard++ < 8) {
+        var qs = "?symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=1000";
+        if (endMs) qs += "&endTime=" + endMs;
+        res = await restGet("/klines" + qs, REST_TIMEOUT_BULKY);
+        raw = await res.json();
+        if (!raw || !raw.length) break;
+        batch = raw.map(function (r) {
+          return { time: toSec(r[0]), open: +r[1], high: +r[2], low: +r[3], close: +r[4], volume: +r[5] };
+        });
+        all = mergeCandleSets(batch, all);
+        oldest = all[0] ? all[0].time : 0;
+        if (all.length >= minBars && oldest <= minStart) break;
+        if (batch.length < 1000) break;
+        endMs = batch[0].time * 1000 - 1;
+      }
+      return all;
+    }
+    async function ensureBacktestCandles(symbol, tf, startTime) {
+      var intervalSec = (INTERVAL_MS[tf] || 60000) / 1000;
+      var warmup = 250;
+      var needStart = startTime - warmup * intervalSec;
+      var needBars = Math.ceil((48 * 3600) / intervalSec) + warmup;
+      var have = state.candles || [];
+      if (have.length >= Math.min(needBars, 200) && have[0] && have[0].time <= needStart) return have.slice();
+      var extra = await fetchKlinesPaginated(symbol, tf, needStart, needBars);
+      return mergeCandleSets(extra, have);
+    }
+    function setBacktestStatus(text) {
+      var el = document.getElementById("bt-status");
+      if (el) el.textContent = text;
+    }
+    function renderBacktest(result) {
+      var sumEl = document.getElementById("bt-summary");
+      var idealEl = document.getElementById("bt-ideal");
+      var listEl = document.getElementById("bt-trades");
+      var pairEl = document.getElementById("bt-pair");
+      var st = result && result.stats, trades = (result && result.trades) || [], html, i, tr, cls;
+      if (pairEl) pairEl.textContent = result ? (pairLabel(result.symbol) + " · " + result.tf) : "";
+      function cell(k, v, tone) {
+        return "<div class=\"bt-metric\"><span class=\"k\">" + k + "</span><span class=\"v" +
+          (tone ? " " + tone : "") + "\">" + v + "</span></div>";
+      }
+      if (!result || !st) {
+        if (sumEl) sumEl.innerHTML = "";
+        if (idealEl) idealEl.textContent = "";
+        if (listEl) listEl.innerHTML = "";
+        return;
+      }
+      function tone(n) { return (typeof n !== "number" || !isFinite(n)) ? "" : (n > 0 ? "up" : n < 0 ? "down" : ""); }
+      html = "";
+      html += cell("Trades", String(st.n));
+      html += cell("Win rate", st.winRate === null ? "—" : st.winRate.toFixed(1) + "%");
+      html += cell("Total return", fmtPctSigned(st.totalPct), tone(st.totalPct));
+      html += cell("Avg trade", fmtPctSigned(st.avgPct), tone(st.avgPct));
+      html += cell("Max drawdown", isFinite(st.maxDD) ? st.maxDD.toFixed(2) + "%" : "—", st.maxDD > 0 ? "down" : "");
+      html += cell("Best", fmtPctSigned(st.best), tone(st.best));
+      html += cell("Worst", fmtPctSigned(st.worst), tone(st.worst));
+      html += cell("Buy & hold", fmtPctSigned(st.bhPct), tone(st.bhPct));
+      if (sumEl) sumEl.innerHTML = html;
+      if (idealEl) {
+        idealEl.innerHTML = "<strong>Hindsight only (not tradable):</strong> the same trades entered at the pivot price would have returned " +
+          "<strong class=\"" + tone(st.idealPct) + "\">" + fmtPctSigned(st.idealPct) + "</strong>. Times UTC+7. Fee " +
+          result.fee + "%/side. Open positions marked to market at the last closed candle."
+      }
+      html = "";
+      if (!trades.length) {
+        html = "<div class=\"bt-status\">No confirmed signals closed a trade in this 48h window.</div>";
+      } else {
+        html += "<div class=\"bt-trade bt-trade-head\"><span>Time (UTC+7)</span><span>Side</span><span>Entry → exit</span><span>%</span></div>";
+        for (i = 0; i < trades.length; i++) {
+          tr = trades[i];
+          cls = tr.side === "long" ? "side-long" : "side-short";
+          html += "<div class=\"bt-trade\"><span>" + esc(fmtTime(tr.entryTime, result.tf)) +
+            "</span><span class=\"" + cls + "\">" + (tr.side === "long" ? "long" : "short") +
+            "</span><span>" + fmtPrice(tr.entry) + " → " + fmtPrice(tr.exit) +
+            "</span><span class=\"" + tone(tr.ret * 100) + "\">" + fmtPctSigned(tr.ret * 100) + "</span></div>";
+        }
+      }
+      if (listEl) listEl.innerHTML = html;
+    }
+    function computeBacktestFrom(candles, symbol, tf, longOnly, feePct) {
+      var lastClosed, endTime, startTime, startI, pack, real, ideal, stats, istats;
+      if (!candles || candles.length < 30) return { error: "Not enough candle history." };
+      lastClosed = lastClosedIndex(candles);
+      if (lastClosed < 20) return { error: "Waiting for enough closed candles." };
+      endTime = candles[lastClosed].time;
+      startTime = endTime - 48 * 60 * 60;
+      if (candles[0].time > startTime) {
+        /* still run with what we have; caller should have fetched more */
+      }
+      startI = 0;
+      while (startI < lastClosed && candles[startI].time < startTime) startI++;
+      pack = detectSwingSignals(candles, false);
+      real = simulateFlipTrades(candles, pack.signals, startTime, endTime, lastClosed, longOnly, feePct / 100);
+      ideal = (function () {
+        var trades = [], pos = null, i, s, want, px, t;
+        function closePos(exitPx, exitTime, reason) {
+          var ret;
+          if (!pos) return;
+          ret = tradeReturn(pos.side, pos.entry, exitPx, feePct / 100);
+          trades.push({ side: pos.side, entry: pos.entry, exit: exitPx, entryTime: pos.entryTime, exitTime: exitTime, ret: ret, reason: reason });
+          pos = null;
+        }
+        var sigs = (pack.signals || []).slice().filter(function (s) {
+          return !s.provisional && isFinite(s.confirmTime) && s.confirmTime >= startTime && s.confirmTime <= endTime;
+        }).sort(function (a, b) { return a.confirmIndex - b.confirmIndex; });
+        for (i = 0; i < sigs.length; i++) {
+          s = sigs[i];
+          want = s.dir === "bull" ? "long" : "short";
+          px = s.price;
+          t = s.time;
+          if (longOnly) {
+            if (want === "long") {
+              if (pos && pos.side === "long") continue;
+              if (pos) closePos(px, t, "flip");
+              pos = { side: "long", entry: px, entryTime: t };
+            } else if (pos && pos.side === "long") closePos(px, t, "sell-exit");
+          } else {
+            if (pos && pos.side === want) continue;
+            if (pos) closePos(px, t, "flip");
+            pos = { side: want, entry: px, entryTime: t };
+          }
+        }
+        if (pos) closePos(candles[lastClosed].close, candles[lastClosed].time, "eod");
+        return trades;
+      })();
+      stats = summarizeTrades(real.trades, candles[startI].close, candles[lastClosed].close);
+      istats = summarizeTrades(ideal, candles[startI].close, candles[lastClosed].close);
+      stats.idealPct = istats.totalPct;
+      return {
+        symbol: symbol, tf: tf, fee: feePct, longOnly: longOnly,
+        startTime: startTime, endTime: endTime,
+        stats: stats, trades: real.trades, signals: real.signals,
+        markers: backtestMarkersFrom(real.trades)
+      };
+    }
+    async function runBacktest48h(force) {
+      var panel = document.getElementById("backtest-panel");
+      if (!panel || panel.hidden) return null;
+      var symbol = state.symbol, tf = state.tf, longOnly = !!state.btLongOnly, feePct = state.btFee;
+      var token = (state.btToken = (state.btToken || 0) + 1);
+      var startGuess, candles, result;
+      setBacktestStatus("Running 48h backtest…");
+      try {
+        startGuess = Math.floor(Date.now() / 1000) - 48 * 60 * 60;
+        candles = await ensureBacktestCandles(symbol, tf, startGuess);
+        if (token !== state.btToken) return null;
+        result = computeBacktestFrom(candles, symbol, tf, longOnly, feePct);
+        if (result.error) {
+          state.btResult = null;
+          state.btMarkers = [];
+          renderBacktest(null);
+          setBacktestStatus(result.error);
+          if (state.btShowMarks) applyMarkers(state.signals, state.provisional);
+          return null;
+        }
+        state.btResult = result;
+        state.btMarkers = result.markers || [];
+        renderBacktest(result);
+        setBacktestStatus("Enter at the confirmation close — no lookahead. " + result.signals + " confirmed signal" + (result.signals === 1 ? "" : "s") + " in the window.");
+        if (state.btShowMarks) applyMarkers(state.signals, state.provisional);
+        return result;
+      } catch (e) {
+        if (token !== state.btToken) return null;
+        logError(e);
+        setBacktestStatus("Backtest failed: " + ((e && e.message) ? e.message : e));
+        return null;
+      }
+    }
+    function scheduleBacktestRefresh() {
+      var panel = document.getElementById("backtest-panel");
+      if (!panel || panel.hidden) return;
+      if (state.btTimer) clearTimeout(state.btTimer);
+      state.btTimer = setTimeout(function () { state.btTimer = null; runBacktest48h(false); }, 280);
+    }
+    function syncBacktestForm() {
+      var lo = document.getElementById("bt-long-only");
+      var fee = document.getElementById("bt-fee");
+      var mk = document.getElementById("bt-marks");
+      if (lo) lo.checked = !!state.btLongOnly;
+      if (fee && document.activeElement !== fee) fee.value = String(state.btFee);
+      if (mk) mk.checked = !!state.btShowMarks;
+    }
+    function onBacktestOptsChange() {
+      var lo = document.getElementById("bt-long-only");
+      var fee = document.getElementById("bt-fee");
+      var mk = document.getElementById("bt-marks");
+      var n;
+      if (lo) state.btLongOnly = !!lo.checked;
+      if (mk) state.btShowMarks = !!mk.checked;
+      if (fee) {
+        n = Number(fee.value);
+        if (isFinite(n) && n >= 0 && n <= 5) state.btFee = n;
+        else fee.value = String(state.btFee);
+      }
+      persistBacktestOpts();
+      if (!state.btShowMarks) {
+        state.btMarkers = [];
+        applyMarkers(state.signals, state.provisional);
+      }
+      runBacktest48h(true);
+    }
+    function openBacktestPanel() {
+      var panel = document.getElementById("backtest-panel");
+      if (!panel) return;
+      panel.hidden = false;
+      document.getElementById("btn-backtest-48h").classList.add("active");
+      syncBacktestForm();
+      persistBacktestOpts();
+      runBacktest48h(true);
+    }
+    function closeBacktestPanel() {
+      var panel = document.getElementById("backtest-panel");
+      if (!panel) return;
+      panel.hidden = true;
+      document.getElementById("btn-backtest-48h").classList.remove("active");
+      persistBacktestOpts();
+    }
+    function toggleBacktestPanel() {
+      var panel = document.getElementById("backtest-panel");
+      if (!panel) return;
+      if (panel.hidden) openBacktestPanel();
+      else closeBacktestPanel();
+    }
+
     window.__chartApp = {
       setView: setView,
       loadSymbol: function (s) { return loadSymbol(s, state.tf, true); },
@@ -2687,6 +3142,9 @@
         return detectSwingSignals(state.candles, true).stats;
       },
       backtestSignals: function (horizons) { return backtestSignals(getActiveSignals(state.candles, true), horizons); },
+      runBacktest48h: function () { return runBacktest48h(true); },
+      getBacktest: function () { return state.btResult || null; },
+      openBacktest: openBacktestPanel,
       resetSettings: resetSettings,
       diagText: diagText,
       setFilter: function (key, val) { filters[key] = val; persistFilters(); refreshSignals(); renderIndicators(); }
