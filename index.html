@@ -692,7 +692,7 @@
       <div id="last-signal">Last: —</div>
       <div id="tf-bar">
         <div id="tf-row"></div>
-        <button type="button" class="chip" id="btn-filters-tf">Filters</button>
+        <button type="button" class="chip" id="btn-backtest-48h">⏱ Backtest 48H</button>\n        <button type="button" class="chip" id="btn-filters-tf">Filters</button>
       </div>
       <div id="legend">Hover a bar for OHLCV</div>
       <div id="error"></div>
@@ -1217,7 +1217,37 @@
       }
     });
     document.getElementById("btn-filters").addEventListener("click", openFilters);
-    document.getElementById("btn-filters-tf").addEventListener("click", openFilters);
+
+    document.getElementById("btn-backtest-48h").addEventListener("click", function () {
+      var candles = state.candles || [];
+      if (candles.length < 3) { alert("Not enough candle history to run the 48-hour backtest."); return; }
+      var endTime = candles[candles.length - 1].time;
+      var startTime = endTime - 48 * 60 * 60;
+      var sigs = getActiveSignals(candles, false).filter(function (s) {
+        var t = isFinite(s.time) ? s.time : (candles[s.index] && candles[s.index].time);
+        return !s.provisional && t >= startTime && t <= endTime;
+      });
+      var horizons = [5, 10, 20], lines = [];
+      horizons.forEach(function (n) {
+        var valid = sigs.filter(function (s) {
+          var ix = isFinite(s.confirmIndex) ? s.confirmIndex : s.index;
+          return isFinite(ix) && ix + n < candles.length && candles[ix + n].time <= endTime;
+        });
+        var good = 0;
+        valid.forEach(function (s) {
+          var ix = isFinite(s.confirmIndex) ? s.confirmIndex : s.index;
+          var move = candles[ix + n].close - candles[ix].close;
+          if ((s.dir === "bull" && move > 0) || (s.dir === "bear" && move < 0)) good++;
+        });
+        lines.push(n + "-candle outcome: " + (valid.length ? (good / valid.length * 100).toFixed(1) + "% favorable (" + good + "/" + valid.length + ")" : "not enough completed outcomes"));
+      });
+      var buys = sigs.filter(function (s) { return s.dir === "bull"; }).length;
+      var sells = sigs.filter(function (s) { return s.dir === "bear"; }).length;
+      alert("48-HOUR SIGNAL BACKTEST\\n" + state.symbol + " · " + state.tf + "\\n" +
+        "Confirmed signals: " + sigs.length + " (BUY " + buys + " / SELL " + sells + ")\\n\\n" +
+        lines.join("\\n") + "\\n\\nDirectional hit rate only; excludes fees, funding, slippage and position sizing.");
+    });
+\n    document.getElementById("btn-filters-tf").addEventListener("click", openFilters);
     document.getElementById("btn-close-filters").addEventListener("click", closeFilters);
     document.getElementById("backdrop").addEventListener("click", closeFilters);
 
