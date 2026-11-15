@@ -8,7 +8,7 @@ Smartphone-first live chart for every Binance Spot USDT pair. BUY marks a confir
 - Coin list from `exchangeInfo` (TRADING USDT), live prices via `!miniTicker@arr`
 - Per-trade updates (`aggTrade` + kline), timeframes 1m / 5m / 15m / 1h / 4h / 1D
 - Indicators: EMA 20/50, RSI 14, and volume bars
-- Signals: ATR-adaptive zigzag with Sensitivity Low / Med / High, optional forming BUY? / SELL? markers, shock-wick clipping, and strict alternation
+- Signals: ATR-adaptive zigzag with Sensitivity Low / Med / High, and an "ATR Swing signals" selector (Confirmed = candle close, Developing = also show faded BUY? / SELL? candidates; same wording as the trading bot), shock-wick clipping, and strict alternation
 - Quality stars (0–3) come from RSI stretch or divergence, a small engulfing/hammer check, and volume spikes — stars do not block a signal
 - The arrow sits on the actual pivot candle; confirmation comes later, after price reverses by about 5×ATR (Med). Confirmed markers do not repaint
 - Connection: Binance REST and WebSocket with failover, plus a REST polling fallback
@@ -18,3 +18,4 @@ Smartphone-first live chart for every Binance Spot USDT pair. BUY marks a confir
 - Optional alert-only Python bot (same swing logic): see [`bot/README.md`](bot/README.md)
 
 The Tokocrypto version has been removed. `binance.html` redirects here.
+- Optional bot link: enter the trading bot's URL and `LOCAL_DASHBOARD_TOKEN` in the settings sheet to draw its open position (entry, TP, SL) for the current coin

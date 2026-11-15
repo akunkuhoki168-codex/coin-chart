@@ -531,6 +531,7 @@
     }
     .signal-card.bull { border-left-color: var(--up); }
     .signal-card.bear { border-left-color: var(--down); }
+    .bot-in { width: 100%; box-sizing: border-box; margin: 4px 0; padding: 8px; background: #1e2329; color: #eaecef; border: 1px solid #2b3139; border-radius: 6px; }
     .signal-card.forming { border-left-style: dashed; }
     .signal-card.provisional { opacity: 0.75; border-left-style: dashed; }
     .sig-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -947,7 +948,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.2";
+    var APP_VERSION = "7.3";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -1366,8 +1367,15 @@
       html += togBtn("swing-sens-medium", "Med", (filters.swingSens || "medium") === "medium");
       html += togBtn("swing-sens-high", "High", (filters.swingSens || "medium") === "high");
       html += "</div>";
-      html += checkRow("conf-swing-early", "Show forming signals (faded BUY? / SELL? until confirmed)", filters.swingEarly !== false);
-      html += "<p class=\"hint\">BUY marks a confirmed swing bottom and SELL a confirmed swing top. The arrow sits on the actual lowest or highest candle. Confirmation comes later, after price reverses by about 5×ATR (Med). A faded BUY?/SELL? can move or disappear until that confirmation. Signals always alternate.</p></div>";
+      html += "<div class=\"filt-label\">ATR Swing signals</div><div class=\"tog-grid\">";
+      html += togBtn("swing-mode-confirmed", "Confirmed (candle close)", filters.swingEarly === false);
+      html += togBtn("swing-mode-developing", "Developing (intrabar)", filters.swingEarly !== false);
+      html += "</div>";
+      html += "<div><div class=\"filt-label\">Bot link (paper trades)</div>";
+      html += "<input type=\"text\" id=\"bot-url\" class=\"bot-in\" placeholder=\"Bot URL, e.g. http://127.0.0.1:8811\" value=\"" + esc(botCfg.url) + "\" />";
+      html += "<input type=\"password\" id=\"bot-token\" class=\"bot-in\" placeholder=\"LOCAL_DASHBOARD_TOKEN\" value=\"" + esc(botCfg.token) + "\" />";
+      html += "<p class=\"hint\">Shows the bot's open position (entry, TP, SL) for the current coin. Leave empty to disable.</p></div>";
+      html += "<p class=\"hint\">Confirmed trades only closed-candle pivots; Developing also shows the faded BUY?/SELL? candidate, like the bot. BUY marks a confirmed swing bottom and SELL a confirmed swing top. The arrow sits on the actual lowest or highest candle. Confirmation comes later, after price reverses by about 5×ATR (Med). A faded BUY?/SELL? can move or disappear until that confirmation. Signals always alternate.</p></div>";
       html += "<div><div class=\"filt-label\">Indicators</div><div class=\"tog-grid\">";
       html += togBtn("ind-ema20", "EMA 20", state.showEma20);
       html += togBtn("ind-ema50", "EMA 50", state.showEma50);
@@ -1398,6 +1406,11 @@
             persistFilters(); refreshSignals(); remountOpenFilters();
             return;
           }
+          if (id === "swing-mode-confirmed" || id === "swing-mode-developing") {
+            filters.swingEarly = id === "swing-mode-developing";
+            persistFilters(); refreshSignals(); remountOpenFilters();
+            return;
+          }
           if (id === "ind-ema20") { state.showEma20 = !state.showEma20; persistIndicators(); renderIndicators(); remountOpenFilters(); return; }
           if (id === "ind-ema50") { state.showEma50 = !state.showEma50; persistIndicators(); renderIndicators(); remountOpenFilters(); return; }
           if (id === "ind-rsi") {
@@ -1409,12 +1422,39 @@
           if (id === "ind-volume") { state.showVolume = !state.showVolume; persistIndicators(); applyBars(); remountOpenFilters(); return; }
         });
       });
-      var early = host.querySelector("#conf-swing-early");
-      if (early) early.addEventListener("change", function () {
-        filters.swingEarly = !!early.checked;
-        persistFilters(); refreshSignals();
+      ["bot-url", "bot-token"].forEach(function (id) {
+        var el = host.querySelector("#" + id);
+        if (el) el.addEventListener("change", function () {
+          botCfg[id === "bot-url" ? "url" : "token"] = el.value.trim();
+          try { localStorage.setItem("coin-chart:bot", JSON.stringify(botCfg)); } catch (e) {}
+          pollBot();
+        });
       });
     }
+    var botCfg = (function () { try { return Object.assign({ url: "", token: "" }, JSON.parse(localStorage.getItem("coin-chart:bot") || "{}")); } catch (e) { return { url: "", token: "" }; } })();
+    var botLines = [];
+    function clearBotLines() { botLines.forEach(function (l) { try { candleSeries.removePriceLine(l); } catch (e) {} }); botLines = []; }
+    async function pollBot() {
+      clearBotLines();
+      if (!botCfg.url) return;
+      try {
+        var r = await fetch(botCfg.url.replace(/\/+$/, "") + "/api/state", { headers: botCfg.token ? { Authorization: "Bearer " + botCfg.token } : {} });
+        if (!r.ok) return;
+        var st = await r.json(), base = baseAsset(state.symbol);
+        (st.coins || []).forEach(function (c) {
+          if (c.coin !== base || !c.pos) return;
+          var p = c.pos, long = p.side === "long", LSt = LightweightCharts.LineStyle;
+          function line(price, color, title, style) {
+            if (isFinite(price) && price) botLines.push(candleSeries.createPriceLine({ price: price, color: color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title: title }));
+          }
+          line(p.entry_px, long ? "#0ecb81" : "#f6465d", (long ? "LONG " : "SHORT ") + (p.entry_reason || ""), LSt.Solid);
+          line(p.tp_px, "#0ecb81", "TP", LSt.Dashed);
+          line(p.sl_px, "#f6465d", "SL", LSt.Dashed);
+        });
+      } catch (e) {}
+    }
+    setInterval(pollBot, 5000);
+    setTimeout(pollBot, 1500);
     function remountOpenFilters() {
       if (document.getElementById("filter-sheet").classList.contains("open")) {
         mountFilters(document.getElementById("filter-form"), true);
