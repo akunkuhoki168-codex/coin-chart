@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.6" />
+  <meta name="app-version" content="7.7" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -753,7 +753,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.6 dynamic coin title and description + adjustable 1–7 day backtest -->
+  <!-- coin-chart v7.7 persist last selected backtest period -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -949,7 +949,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.6";
+    var APP_VERSION = "7.7";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -982,7 +982,8 @@
       indicators: "coin-chart:indicators",
       sort: "coin-chart:sort",
       restBase: "coin-chart:restBase",
-      backtest: "coin-chart:backtest"
+      backtest: "coin-chart:backtest",
+      backtestDays: "coin-chart:backtest-days"
     };
 
     function defaultFilters() {
@@ -1283,7 +1284,7 @@
     }
     function resetSettings() {
       try {
-        [LS.filters, LS.indicators, LS.sort, LS.restBase, LS.backtest].forEach(function (k) {
+        [LS.filters, LS.indicators, LS.sort, LS.restBase, LS.backtest, LS.backtestDays].forEach(function (k) {
           try { localStorage.removeItem(k); } catch (e) {}
         });
       } catch (e) {}
@@ -2865,13 +2866,19 @@
       if (raw && typeof raw === "object") {
         if (typeof raw.longOnly === "boolean") d.longOnly = raw.longOnly;
         if (isFinite(Number(raw.fee)) && Number(raw.fee) >= 0 && Number(raw.fee) <= 5) d.fee = Number(raw.fee);
-        if (typeof raw.days === "number" && raw.days >= 1 && raw.days <= 7) d.days = Math.round(raw.days);
+        var savedDays = Number(raw.days);
+        if (isFinite(savedDays) && savedDays >= 1 && savedDays <= 7) d.days = Math.round(savedDays);
         if (typeof raw.showMarks === "boolean") d.showMarks = raw.showMarks;
         if (typeof raw.open === "boolean") d.open = raw.open;
       }
+      try {
+        var standaloneDays = Number(localStorage.getItem(LS.backtestDays));
+        if (isFinite(standaloneDays) && standaloneDays >= 1 && standaloneDays <= 7) d.days = Math.round(standaloneDays);
+      } catch (e) {}
       return d;
     }
     function persistBacktestOpts() {
+      try { localStorage.setItem(LS.backtestDays, String(state.btDays || 2)); } catch (e) {}
       saveJson(LS.backtest, {
         longOnly: !!state.btLongOnly,
         fee: state.btFee,
@@ -3191,6 +3198,10 @@
         else fee.value = String(state.btFee);
       }
       persistBacktestOpts();
+      var backtestButton = document.getElementById("btn-backtest-48h");
+      var backtestTitle = document.getElementById("bt-title");
+      if (backtestButton) backtestButton.textContent = state.btDays + "d Backtest";
+      if (backtestTitle) backtestTitle.textContent = "Backtest · " + state.btDays + " days";
       if (!state.btShowMarks) {
         state.btMarkers = [];
         applyMarkers(state.signals, state.provisional);
