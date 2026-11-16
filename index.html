@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.7" />
+  <meta name="app-version" content="7.8" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -753,7 +753,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.7 persist last selected backtest period -->
+  <!-- coin-chart v7.8 separate long/short TP and SL backtest controls -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -794,6 +794,10 @@
         <div class="bt-opts">
           <label class="bt-fee">Period <select id="bt-days"><option value="1">1 day</option><option value="2" selected>2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option></select></label>
           <label class="check-row"><input type="checkbox" id="bt-long-only" /> Long only</label>
+          <label class="bt-fee">Long TP <input id="bt-long-tp" type="number" min="0" max="100" step="0.1" value="1" />%</label>
+          <label class="bt-fee">Long SL <input id="bt-long-sl" type="number" min="0" max="100" step="0.1" value="0.5" />%</label>
+          <label class="bt-fee">Short TP <input id="bt-short-tp" type="number" min="0" max="100" step="0.1" value="1" />%</label>
+          <label class="bt-fee">Short SL <input id="bt-short-sl" type="number" min="0" max="100" step="0.1" value="0.5" />%</label>
           <label class="bt-fee">Fee <input id="bt-fee" type="number" min="0" max="5" step="0.01" value="0.1" /> %/side</label>
           <label class="check-row"><input type="checkbox" id="bt-marks" /> Mark trades</label>
         </div>
@@ -949,7 +953,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.7";
+    var APP_VERSION = "7.8";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -1107,6 +1111,8 @@
     (function initBacktestPrefs() {
       var opts = loadBacktestOpts();
       state.btDays = opts.days;
+      state.btLongTP = opts.longTP; state.btLongSL = opts.longSL;
+      state.btShortTP = opts.shortTP; state.btShortSL = opts.shortSL;
       state.btLongOnly = opts.longOnly;
       state.btFee = opts.fee;
       state.btShowMarks = opts.showMarks;
@@ -1350,6 +1356,9 @@
     document.getElementById("btn-backtest-48h").addEventListener("click", toggleBacktestPanel);
     document.getElementById("bt-close").addEventListener("click", closeBacktestPanel);
     document.getElementById("bt-days").addEventListener("change", onBacktestOptsChange);
+    ["bt-long-tp", "bt-long-sl", "bt-short-tp", "bt-short-sl"].forEach(function (id) {
+      document.getElementById(id).addEventListener("change", onBacktestOptsChange);
+    });
     document.getElementById("bt-long-only").addEventListener("change", onBacktestOptsChange);
     document.getElementById("bt-marks").addEventListener("change", onBacktestOptsChange);
     document.getElementById("bt-fee").addEventListener("change", onBacktestOptsChange);
@@ -2858,7 +2867,7 @@
 
 
     function defaultBacktestOpts() {
-      return { longOnly: false, fee: 0.1, days: 2, showMarks: false, open: false };
+      return { longOnly: false, fee: 0.1, days: 2, longTP: 1, longSL: 0.5, shortTP: 1, shortSL: 0.5, showMarks: false, open: false };
     }
     function loadBacktestOpts() {
       var d = defaultBacktestOpts(), raw;
@@ -2868,6 +2877,10 @@
         if (isFinite(Number(raw.fee)) && Number(raw.fee) >= 0 && Number(raw.fee) <= 5) d.fee = Number(raw.fee);
         var savedDays = Number(raw.days);
         if (isFinite(savedDays) && savedDays >= 1 && savedDays <= 7) d.days = Math.round(savedDays);
+        ["longTP", "longSL", "shortTP", "shortSL"].forEach(function (k) {
+          var v = Number(raw[k]);
+          if (isFinite(v) && v >= 0 && v <= 100) d[k] = v;
+        });
         if (typeof raw.showMarks === "boolean") d.showMarks = raw.showMarks;
         if (typeof raw.open === "boolean") d.open = raw.open;
       }
@@ -2883,6 +2896,8 @@
         longOnly: !!state.btLongOnly,
         fee: state.btFee,
         days: state.btDays,
+        longTP: state.btLongTP, longSL: state.btLongSL,
+        shortTP: state.btShortTP, shortSL: state.btShortSL,
         showMarks: !!state.btShowMarks,
         open: !document.getElementById("backtest-panel").hidden
       });
@@ -2896,43 +2911,56 @@
       if (typeof n !== "number" || !isFinite(n)) return "—";
       return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
     }
-    function simulateFlipTrades(candles, sigs, startTime, endTime, lastClosed, longOnly, feeFrac) {
-      var trades = [], pos = null, i, s, ix, px, t, want;
+    function simulateFlipTrades(candles, sigs, startTime, endTime, lastClosed, longOnly, feeFrac, risk) {
+      var trades = [], pos = null, i, s, ix, px, t, want, cursor = -1;
+      risk = risk || {};
       function closePos(exitPx, exitTime, reason) {
         var ret;
         if (!pos) return;
         ret = tradeReturn(pos.side, pos.entry, exitPx, feeFrac);
-        trades.push({
-          side: pos.side, entry: pos.entry, exit: exitPx,
-          entryTime: pos.entryTime, exitTime: exitTime,
-          ret: ret, reason: reason
-        });
+        trades.push({ side: pos.side, entry: pos.entry, exit: exitPx,
+          entryTime: pos.entryTime, exitTime: exitTime, ret: ret, reason: reason });
         pos = null;
+      }
+      function scanRisk(fromIndex, toIndex) {
+        var j, bar, tpPct, slPct, tp, sl, hitTP, hitSL;
+        if (!pos) return;
+        tpPct = (pos.side === "long" ? risk.longTP : risk.shortTP) / 100;
+        slPct = (pos.side === "long" ? risk.longSL : risk.shortSL) / 100;
+        for (j = Math.max(fromIndex, pos.entryIndex + 1); j <= toIndex && pos; j++) {
+          bar = candles[j];
+          tp = pos.side === "long" ? pos.entry * (1 + tpPct) : pos.entry * (1 - tpPct);
+          sl = pos.side === "long" ? pos.entry * (1 - slPct) : pos.entry * (1 + slPct);
+          hitTP = tpPct > 0 && (pos.side === "long" ? bar.high >= tp : bar.low <= tp);
+          hitSL = slPct > 0 && (pos.side === "long" ? bar.low <= sl : bar.high >= sl);
+          if (!hitTP && !hitSL) continue;
+          // Conservative same-candle rule: when both levels are touched, count SL first.
+          closePos(hitSL ? sl : tp, bar.time, hitSL ? "SL" : "TP");
+        }
       }
       sigs = (sigs || []).slice().filter(function (s) {
         return !s.provisional && isFinite(s.confirmTime) && s.confirmTime >= startTime && s.confirmTime <= endTime;
       }).sort(function (a, b) { return a.confirmIndex - b.confirmIndex; });
       for (i = 0; i < sigs.length; i++) {
-        s = sigs[i];
-        ix = s.confirmIndex;
+        s = sigs[i]; ix = s.confirmIndex;
         if (!isFinite(ix) || ix > lastClosed || ix < 0) continue;
-        px = candles[ix].close;
-        t = candles[ix].time;
+        scanRisk(cursor + 1, ix);
+        px = candles[ix].close; t = candles[ix].time;
         want = s.dir === "bull" ? "long" : "short";
         if (longOnly) {
           if (want === "long") {
-            if (pos && pos.side === "long") continue;
+            if (pos && pos.side === "long") { cursor = ix; continue; }
             if (pos) closePos(px, t, "flip");
-            pos = { side: "long", entry: px, entryTime: t };
-          } else if (pos && pos.side === "long") {
-            closePos(px, t, "sell-exit");
-          }
+            pos = { side: "long", entry: px, entryTime: t, entryIndex: ix };
+          } else if (pos && pos.side === "long") closePos(px, t, "sell-exit");
         } else {
-          if (pos && pos.side === want) continue;
+          if (pos && pos.side === want) { cursor = ix; continue; }
           if (pos) closePos(px, t, "flip");
-          pos = { side: want, entry: px, entryTime: t };
+          pos = { side: want, entry: px, entryTime: t, entryIndex: ix };
         }
+        cursor = ix;
       }
+      scanRisk(cursor + 1, lastClosed);
       if (pos) closePos(candles[lastClosed].close, candles[lastClosed].time, "eod");
       return { trades: trades, signals: sigs.length };
     }
@@ -3045,6 +3073,10 @@
       function tone(n) { return (typeof n !== "number" || !isFinite(n)) ? "" : (n > 0 ? "up" : n < 0 ? "down" : ""); }
       html = "";
       html += cell("Trades", String(st.n));
+      if (result.risk) {
+        html += cell("Long TP / SL", result.risk.longTP + "% / " + result.risk.longSL + "%");
+        html += cell("Short TP / SL", result.risk.shortTP + "% / " + result.risk.shortSL + "%");
+      }
       html += cell("Win rate", st.winRate === null ? "—" : st.winRate.toFixed(1) + "%");
       html += cell("Total return", fmtPctSigned(st.totalPct), tone(st.totalPct));
       html += cell("Avg trade", fmtPctSigned(st.avgPct), tone(st.avgPct));
@@ -3054,9 +3086,9 @@
       html += cell("Buy & hold", fmtPctSigned(st.bhPct), tone(st.bhPct));
       if (sumEl) sumEl.innerHTML = html;
       if (idealEl) {
-        idealEl.innerHTML = "<strong>Hindsight only (not tradable):</strong> the same trades entered at the pivot price would have returned " +
+        idealEl.innerHTML = "<strong>Hindsight signal-only (ignores TP/SL):</strong> pivot-price comparison would have returned " +
           "<strong class=\"" + tone(st.idealPct) + "\">" + fmtPctSigned(st.idealPct) + "</strong>. Times UTC+7. Fee " +
-          result.fee + "%/side. Open positions marked to market at the last closed candle."
+          result.fee + "%/side. TP/SL are price-move thresholds before fees; if both are touched in one candle, SL is counted first. Open positions are marked to market at the last closed candle."
       }
       html = "";
       if (!trades.length) {
@@ -3075,7 +3107,7 @@
       if (listEl) listEl.innerHTML = html;
     }
     function computeBacktestFrom(candles, symbol, tf, longOnly, feePct) {
-      var lastClosed, endTime, startTime, startI, pack, real, ideal, stats, istats;
+      var lastClosed, endTime, startTime, startI, pack, real, ideal, stats, istats, risk;
       if (!candles || candles.length < 30) return { error: "Not enough candle history." };
       lastClosed = lastClosedIndex(candles);
       if (lastClosed < 20) return { error: "Waiting for enough closed candles." };
@@ -3087,7 +3119,8 @@
       startI = 0;
       while (startI < lastClosed && candles[startI].time < startTime) startI++;
       pack = detectSwingSignals(candles, false);
-      real = simulateFlipTrades(candles, pack.signals, startTime, endTime, lastClosed, longOnly, feePct / 100);
+      risk = { longTP: state.btLongTP, longSL: state.btLongSL, shortTP: state.btShortTP, shortSL: state.btShortSL };
+      real = simulateFlipTrades(candles, pack.signals, startTime, endTime, lastClosed, longOnly, feePct / 100, risk);
       ideal = (function () {
         var trades = [], pos = null, i, s, want, px, t;
         function closePos(exitPx, exitTime, reason) {
@@ -3124,7 +3157,7 @@
       istats = summarizeTrades(ideal, candles[startI].close, candles[lastClosed].close);
       stats.idealPct = istats.totalPct;
       return {
-        symbol: symbol, tf: tf, fee: feePct, longOnly: longOnly,
+        symbol: symbol, tf: tf, fee: feePct, longOnly: longOnly, risk: risk,
         startTime: startTime, endTime: endTime,
         stats: stats, trades: real.trades, signals: real.signals,
         markers: backtestMarkersFrom(real.trades)
@@ -3173,6 +3206,8 @@
       var lo = document.getElementById("bt-long-only");
       var fee = document.getElementById("bt-fee");
       var mk = document.getElementById("bt-marks");
+      var longTP = document.getElementById("bt-long-tp"), longSL = document.getElementById("bt-long-sl");
+      var shortTP = document.getElementById("bt-short-tp"), shortSL = document.getElementById("bt-short-sl");
       var days = document.getElementById("bt-days");
       var btn = document.getElementById("btn-backtest-48h");
       var title = document.getElementById("bt-title");
@@ -3180,6 +3215,8 @@
       if (btn) btn.textContent = (state.btDays || 2) + "d Backtest";
       if (title) title.textContent = "Backtest · " + (state.btDays || 2) + " days";
       if (lo) lo.checked = !!state.btLongOnly;
+      if (longTP) longTP.value = String(state.btLongTP); if (longSL) longSL.value = String(state.btLongSL);
+      if (shortTP) shortTP.value = String(state.btShortTP); if (shortSL) shortSL.value = String(state.btShortSL);
       if (fee && document.activeElement !== fee) fee.value = String(state.btFee);
       if (mk) mk.checked = !!state.btShowMarks;
     }
@@ -3188,9 +3225,14 @@
       var fee = document.getElementById("bt-fee");
       var mk = document.getElementById("bt-marks");
       var days = document.getElementById("bt-days");
-      var n;
+      var riskInputs = [["bt-long-tp", "btLongTP"], ["bt-long-sl", "btLongSL"], ["bt-short-tp", "btShortTP"], ["bt-short-sl", "btShortSL"]];
+      var n, ri, input;
       if (days) { n = Number(days.value); if (isFinite(n) && n >= 1 && n <= 7) state.btDays = Math.round(n); }
       if (lo) state.btLongOnly = !!lo.checked;
+      for (ri = 0; ri < riskInputs.length; ri++) {
+        input = document.getElementById(riskInputs[ri][0]);
+        if (input) { n = Number(input.value); if (isFinite(n) && n >= 0 && n <= 100) state[riskInputs[ri][1]] = n; else input.value = String(state[riskInputs[ri][1]]); }
+      }
       if (mk) state.btShowMarks = !!mk.checked;
       if (fee) {
         n = Number(fee.value);
