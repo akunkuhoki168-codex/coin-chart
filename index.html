@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.8" />
+  <meta name="app-version" content="7.9" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" id="page-description" content="Live Binance Spot chart with technical indicators, trading signals, and an adjustable 1–7 day backtest." />
-  <title>Binance Spot Chart — Live Price & Trading Signals</title>
+  <meta name="description" id="page-description" content="Live Binance USD-M Futures chart with technical indicators, trading signals, and an adjustable 1–7 day backtest." />
+  <title>Binance USD-M Futures Chart — Live Price & Trading Signals</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
   <script src="vendor/lightweight-charts.standalone.production.js?v=7.4"></script>
   <script>
@@ -753,7 +753,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.8 separate long/short TP and SL backtest controls -->
+  <!-- coin-chart v7.9 Binance USD-M Futures market data: REST + WebSocket -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -953,27 +953,26 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.8";
+    var APP_VERSION = "7.9";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
+    // Binance USDⓈ-M Futures REST endpoints (public market data only).
     var REST_BASES = [
-      "https://data-api.binance.vision",
-      "https://api.binance.com",
-      "https://api1.binance.com",
-      "https://api2.binance.com",
-      "https://api3.binance.com",
-      "https://api-gcp.binance.com"
+      "https://fapi.binance.com",
+      "https://fapi1.binance.com",
+      "https://fapi2.binance.com",
+      "https://fapi3.binance.com",
+      "https://fapi4.binance.com"
     ];
     var REST_TIMEOUT = 4000;
     var REST_TIMEOUT_BULKY = 8000;
     // Conservative REST fallback cadence; WebSocket remains the primary feed.
     var KLINE_POLL_MS = 3000;
     var TICKER_POLL_MS = 30000;
+    // Binance USDⓈ-M Futures WebSocket market-data stream.
     var WS_HOSTS = [
-      "wss://data-stream.binance.vision:443",
-      "wss://stream.binance.com:443",
-      "wss://stream.binance.com:9443"
+      "wss://fstream.binance.com"
     ];
     var WS_CONNECT_TIMEOUT = 5000;
     var UP = "#0ecb81";
@@ -1171,7 +1170,7 @@
         st.restFailed = [];
       }
       for (i = 0; i < bases.length; i++) {
-        url = bases[i] + "/api/v3" + path;
+        url = bases[i] + "/fapi/v1" + path;
         if (st && st.restTried.indexOf(bases[i]) === -1) st.restTried.push(bases[i]);
         try {
           res = await fetchWithTimeout(url, timeout || REST_TIMEOUT);
@@ -1825,9 +1824,9 @@
       var chg = isFinite(t.changePct) ? t.changePct : NaN;
       document.getElementById("pair").textContent = pairLabel(state.symbol);
       var activePair = pairLabel(state.symbol);
-      document.title = activePair + " — Binance Spot Chart & Trading Signals";
+      document.title = activePair + " — Binance USD-M Futures Chart & Trading Signals";
       var pageDescription = document.getElementById("page-description");
-      if (pageDescription) pageDescription.setAttribute("content", "Live " + activePair + " Binance Spot chart with real-time price, technical indicators, buy/sell signals, and a 48-hour backtest.");
+      if (pageDescription) pageDescription.setAttribute("content", "Live " + activePair + " Binance USD-M Futures chart with real-time price, technical indicators, buy/sell signals, and an adjustable 1–7 day backtest.");
       document.getElementById("last").textContent = fmtPrice(last);
       document.getElementById("last").className = chg >= 0 ? "up" : "down";
       document.getElementById("change").textContent = isFinite(chg) ? fmtPct(chg) : "—";
@@ -2732,7 +2731,7 @@
     async function loadMarkets() {
       var info, ticks = [], i, rec, s;
       try {
-        var infoRes = await restGet("/exchangeInfo?permissions=SPOT", REST_TIMEOUT_BULKY);
+        var infoRes = await restGet("/exchangeInfo", REST_TIMEOUT_BULKY);
         info = await infoRes.json();
         try {
           var tickRes = await restGet("/ticker/24hr", REST_TIMEOUT_BULKY);
@@ -2746,7 +2745,7 @@
       }
       var coins = [];
       (info.symbols || []).forEach(function (s) {
-        if (s.status === "TRADING" && s.quoteAsset === "USDT" && s.isSpotTradingAllowed !== false) {
+        if (s.status === "TRADING" && s.quoteAsset === "USDT" && s.contractType === "PERPETUAL") {
           rec = { symbol: s.symbol, base: s.baseAsset };
           coins.push(rec);
           state.coinSet[s.symbol] = true;
