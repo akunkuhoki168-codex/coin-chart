@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.5" />
+  <meta name="app-version" content="7.6" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" id="page-description" content="Live Binance Spot chart with technical indicators, trading signals, and a 48-hour backtest." />
+  <meta name="description" id="page-description" content="Live Binance Spot chart with technical indicators, trading signals, and an adjustable 1–7 day backtest." />
   <title>Binance Spot Chart — Live Price & Trading Signals</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
   <script src="vendor/lightweight-charts.standalone.production.js?v=7.4"></script>
@@ -753,7 +753,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.5 dynamic coin title and description + swing buy-sell + 48h backtest -->
+  <!-- coin-chart v7.6 dynamic coin title and description + adjustable 1–7 day backtest -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -782,16 +782,17 @@
       <div id="last-signal">Last: —</div>
       <div id="tf-bar">
         <div id="tf-row"></div>
-        <button type="button" class="chip" id="btn-backtest-48h" title="Backtest the last 48 hours" aria-label="Backtest 48 hours">48h</button>
+        <button type="button" class="chip" id="btn-backtest-48h" title="Run adjustable backtest" aria-label="Run backtest">2d Backtest</button>
         <button type="button" class="chip" id="btn-filters-tf">Filters</button>
       </div>
       <div id="backtest-panel" hidden>
         <div class="bt-head">
-          <div class="bt-title">Backtest 48h</div>
+          <div class="bt-title" id="bt-title">Backtest · 2 days</div>
           <span id="bt-pair" class="bt-sub"></span>
           <button type="button" class="icon-btn" id="bt-close" aria-label="Close backtest">×</button>
         </div>
         <div class="bt-opts">
+          <label class="bt-fee">Period <select id="bt-days"><option value="1">1 day</option><option value="2" selected>2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option></select></label>
           <label class="check-row"><input type="checkbox" id="bt-long-only" /> Long only</label>
           <label class="bt-fee">Fee <input id="bt-fee" type="number" min="0" max="5" step="0.01" value="0.1" /> %/side</label>
           <label class="check-row"><input type="checkbox" id="bt-marks" /> Mark trades</label>
@@ -841,7 +842,7 @@
         <div class="sheet-title-row">
           <div class="sheet-title">Settings</div>
         </div>
-        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.4 · Swing BUY / SELL · 48h backtest</div>
+        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.6 · Swing BUY / SELL · 1–7d backtest</div>
       </div>
       <div class="list" id="settings-body"></div>
     </section>
@@ -948,7 +949,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.4";
+    var APP_VERSION = "7.6";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -1104,6 +1105,7 @@
     if (state.restBase) window.__pumpStatus.restBase = state.restBase;
     (function initBacktestPrefs() {
       var opts = loadBacktestOpts();
+      state.btDays = opts.days;
       state.btLongOnly = opts.longOnly;
       state.btFee = opts.fee;
       state.btShowMarks = opts.showMarks;
@@ -1346,6 +1348,7 @@
     document.getElementById("btn-filters-tf").addEventListener("click", openFilters);
     document.getElementById("btn-backtest-48h").addEventListener("click", toggleBacktestPanel);
     document.getElementById("bt-close").addEventListener("click", closeBacktestPanel);
+    document.getElementById("bt-days").addEventListener("change", onBacktestOptsChange);
     document.getElementById("bt-long-only").addEventListener("change", onBacktestOptsChange);
     document.getElementById("bt-marks").addEventListener("change", onBacktestOptsChange);
     document.getElementById("bt-fee").addEventListener("change", onBacktestOptsChange);
@@ -2854,7 +2857,7 @@
 
 
     function defaultBacktestOpts() {
-      return { longOnly: false, fee: 0.1, showMarks: false, open: false };
+      return { longOnly: false, fee: 0.1, days: 2, showMarks: false, open: false };
     }
     function loadBacktestOpts() {
       var d = defaultBacktestOpts(), raw;
@@ -2862,6 +2865,7 @@
       if (raw && typeof raw === "object") {
         if (typeof raw.longOnly === "boolean") d.longOnly = raw.longOnly;
         if (isFinite(Number(raw.fee)) && Number(raw.fee) >= 0 && Number(raw.fee) <= 5) d.fee = Number(raw.fee);
+        if (typeof raw.days === "number" && raw.days >= 1 && raw.days <= 7) d.days = Math.round(raw.days);
         if (typeof raw.showMarks === "boolean") d.showMarks = raw.showMarks;
         if (typeof raw.open === "boolean") d.open = raw.open;
       }
@@ -2871,6 +2875,7 @@
       saveJson(LS.backtest, {
         longOnly: !!state.btLongOnly,
         fee: state.btFee,
+        days: state.btDays,
         showMarks: !!state.btShowMarks,
         open: !document.getElementById("backtest-panel").hidden
       });
@@ -2999,11 +3004,11 @@
       }
       return all;
     }
-    async function ensureBacktestCandles(symbol, tf, startTime) {
+    async function ensureBacktestCandles(symbol, tf, startTime, days) {
       var intervalSec = (INTERVAL_MS[tf] || 60000) / 1000;
       var warmup = 250;
       var needStart = startTime - warmup * intervalSec;
-      var needBars = Math.ceil((48 * 3600) / intervalSec) + warmup;
+      var needBars = Math.ceil((days * 24 * 3600) / intervalSec) + warmup;
       var have = state.candles || [];
       if (have.length >= Math.min(needBars, 200) && have[0] && have[0].time <= needStart) return have.slice();
       var extra = await fetchKlinesPaginated(symbol, tf, needStart, needBars);
@@ -3048,7 +3053,7 @@
       }
       html = "";
       if (!trades.length) {
-        html = "<div class=\"bt-status\">No confirmed signals closed a trade in this 48h window.</div>";
+        html = "<div class=\"bt-status\">No confirmed signals closed a trade in this selected window.</div>";
       } else {
         html += "<div class=\"bt-trade bt-trade-head\"><span>Time (UTC+7)</span><span>Side</span><span>Entry → exit</span><span>%</span></div>";
         for (i = 0; i < trades.length; i++) {
@@ -3068,7 +3073,7 @@
       lastClosed = lastClosedIndex(candles);
       if (lastClosed < 20) return { error: "Waiting for enough closed candles." };
       endTime = candles[lastClosed].time;
-      startTime = endTime - 48 * 60 * 60;
+      startTime = endTime - (Number(state.btDays) || 2) * 24 * 60 * 60;
       if (candles[0].time > startTime) {
         /* still run with what we have; caller should have fetched more */
       }
@@ -3121,13 +3126,13 @@
     async function runBacktest48h(force) {
       var panel = document.getElementById("backtest-panel");
       if (!panel || panel.hidden) return null;
-      var symbol = state.symbol, tf = state.tf, longOnly = !!state.btLongOnly, feePct = state.btFee;
+      var symbol = state.symbol, tf = state.tf, longOnly = !!state.btLongOnly, feePct = state.btFee, days = Number(state.btDays) || 2;
       var token = (state.btToken = (state.btToken || 0) + 1);
       var startGuess, candles, result;
-      setBacktestStatus("Running 48h backtest…");
+      setBacktestStatus("Running " + days + "-day backtest…");
       try {
-        startGuess = Math.floor(Date.now() / 1000) - 48 * 60 * 60;
-        candles = await ensureBacktestCandles(symbol, tf, startGuess);
+        startGuess = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+        candles = await ensureBacktestCandles(symbol, tf, startGuess, days);
         if (token !== state.btToken) return null;
         result = computeBacktestFrom(candles, symbol, tf, longOnly, feePct);
         if (result.error) {
@@ -3161,6 +3166,12 @@
       var lo = document.getElementById("bt-long-only");
       var fee = document.getElementById("bt-fee");
       var mk = document.getElementById("bt-marks");
+      var days = document.getElementById("bt-days");
+      var btn = document.getElementById("btn-backtest-48h");
+      var title = document.getElementById("bt-title");
+      if (days) days.value = String(state.btDays || 2);
+      if (btn) btn.textContent = (state.btDays || 2) + "d Backtest";
+      if (title) title.textContent = "Backtest · " + (state.btDays || 2) + " days";
       if (lo) lo.checked = !!state.btLongOnly;
       if (fee && document.activeElement !== fee) fee.value = String(state.btFee);
       if (mk) mk.checked = !!state.btShowMarks;
@@ -3169,7 +3180,9 @@
       var lo = document.getElementById("bt-long-only");
       var fee = document.getElementById("bt-fee");
       var mk = document.getElementById("bt-marks");
+      var days = document.getElementById("bt-days");
       var n;
+      if (days) { n = Number(days.value); if (isFinite(n) && n >= 1 && n <= 7) state.btDays = Math.round(n); }
       if (lo) state.btLongOnly = !!lo.checked;
       if (mk) state.btShowMarks = !!mk.checked;
       if (fee) {
