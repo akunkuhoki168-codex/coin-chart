@@ -1840,7 +1840,8 @@
         s = sigs[sigs.length - 1];
         lagWord = isFinite(s.lag) ? (", confirmed " + s.lag + " bar" + (s.lag === 1 ? "" : "s") + " later") : "";
         html += "<span class=\"" + (s.dir === "bull" ? "buy" : "sell") + "\">" + (s.name || (s.dir === "bull" ? "BUY" : "SELL")) +
-          "</span> @ " + fmtPrice(s.price) + " (" + (s.swingKind || (s.dir === "bull" ? "bottom" : "top")) + ")" + lagWord;
+          "</span> @ " + fmtPrice(s.price) + " (" + (s.swingKind || (s.dir === "bull" ? "bottom" : "top")) + ")" + lagWord +
+          (isFinite(s.score) ? " · Entry " + s.score + "/100 " + (s.grade || "") : "");
       } else {
         html += "—";
       }
@@ -2032,6 +2033,66 @@
       if (stars > 3) stars = 3;
       return { stars: stars, reasons: reasons };
     }
+    function scoreSwingEntry(dir, pivotI, confirmI, candles, rsis, atr, ema20, ema50) {
+      var c = candles[confirmI], rsi = rsis[confirmI], e20 = ema20[confirmI], e50 = ema50[confirmI];
+      var score = 0, reasons = [], trendKnown = isFinite(e20) && isFinite(e50);
+      var aligned = trendKnown && (dir === "bull" ? e20 > e50 : e20 < e50);
+      var priceAligned = isFinite(e20) && (dir === "bull" ? c.close >= e20 : c.close <= e20);
+      var volAvg = volSmaPrev(candles, confirmI, 20);
+      var volRatio = isFinite(volAvg) && volAvg > 0 ? c.volume / volAvg : NaN;
+      var range = Math.max(c.high - c.low, 1e-12);
+      var body = Math.abs(c.close - c.open);
+      var directional = dir === "bull" ? c.close > c.open : c.close < c.open;
+      var bodyRatio = body / range;
+      var lag = Math.max(0, confirmI - pivotI);
+      var a = isFinite(atr[confirmI]) && atr[confirmI] > 0 ? atr[confirmI] : NaN;
+      var extension = a ? (dir === "bull" ? c.close - candles[pivotI].low : candles[pivotI].high - c.close) / a : NaN;
+      if (aligned) { score += 25; reasons.push("EMA trend aligned"); }
+      else if (!trendKnown) score += 12;
+      else reasons.push("Against EMA trend");
+      if (priceAligned) { score += 15; reasons.push("Price on EMA20 side"); }
+      else if (!isFinite(e20)) score += 7;
+      else reasons.push("Price against EMA20");
+      if (isFinite(rsi)) {
+        if (dir === "bull") {
+          if (rsi >= 50 && rsi <= 68) score += 20;
+          else if (rsi >= 42 && rsi < 50) score += 14;
+          else if (rsi > 68 && rsi <= 75) score += 10;
+          else score += 5;
+        } else {
+          if (rsi >= 32 && rsi <= 50) score += 20;
+          else if (rsi > 50 && rsi <= 58) score += 14;
+          else if (rsi >= 25 && rsi < 32) score += 10;
+          else score += 5;
+        }
+        reasons.push("RSI " + Math.round(rsi));
+      } else score += 8;
+      if (isFinite(volRatio)) {
+        score += volRatio >= 1.5 ? 15 : volRatio >= 1.2 ? 12 : volRatio >= 0.8 ? 7 : 3;
+        if (volRatio >= 1.2) reasons.push("Confirmation volume " + volRatio.toFixed(1) + "x");
+      } else score += 7;
+      if (directional) {
+        score += bodyRatio >= 0.6 ? 15 : bodyRatio >= 0.35 ? 11 : 7;
+        if (bodyRatio >= 0.45) reasons.push("Directional candle");
+      } else {
+        score += 2;
+        reasons.push("Weak confirmation candle");
+      }
+      score += lag <= 3 ? 10 : lag <= 5 ? 7 : lag <= 8 ? 4 : 1;
+      if (isFinite(extension)) {
+        if (extension > 1.5) { score -= 10; reasons.push("Late entry — extended move"); }
+        else if (extension > 1) { score -= 5; reasons.push("Entry somewhat extended"); }
+        else reasons.push("Entry not overextended");
+      }
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      return {
+        score: score,
+        grade: score >= 80 ? "Strong" : score >= 65 ? "Good" : score >= 50 ? "Fair" : "Weak",
+        reasons: reasons,
+        lag: lag,
+        extensionAtr: isFinite(extension) ? Math.round(extension * 10) / 10 : null
+      };
+    }
     function emptySwingStats() {
       return { n: 0, buys: 0, sells: 0, avgLag: null, medLag: null, local20Buy: null, local20Sell: null, avgSwingPct: null, avgSwingAtr: null };
     }
@@ -2089,6 +2150,7 @@
       forming = lastClosed < last;
       if (lastClosed < 20) return { signals: out, provisional: null, stats: emptySwingStats() };
       atr = atrArr(candles, 14);
+      var ema20Score = emaArr(candles, 20), ema50Score = emaArr(candles, 50);
       params = swingParams();
       pack = computeSwingPivots(candles, lastClosed, atr, params);
       if (forming && pack.developing) {
@@ -2105,6 +2167,7 @@
         dir = p.kind === "low" ? "bull" : "bear";
         prevSame = i >= 2 ? pack.pivots[i - 2] : null;
         rate = rateSwing(dir, p.i, candles, rsis, prevSame);
+        var entryQuality = scoreSwingEntry(dir, p.i, p.conf, candles, rsis, atr, ema20Score, ema50Score);
         next = pack.pivots[i + 1] || null;
         if (next) {
           pct = p.price ? Math.round(((next.price - p.price) / p.price) * 10000) / 100 : null;
@@ -2128,6 +2191,9 @@
           confirmTime: candles[p.conf] ? candles[p.conf].time : candles[p.i].time,
           lag: p.lag,
           stars: rate.stars,
+          score: entryQuality.score,
+          grade: entryQuality.grade,
+          scoreReasons: entryQuality.reasons,
           reasons: rate.reasons,
           nextMovePct: pct,
           nextMoveLabel: label,
@@ -2255,18 +2321,23 @@
         html += "<button type=\"button\" class=\"signal-card " + s.dir + (s.forming ? " forming" : "") + (s.provisional ? " provisional" : "") + "\" data-time=\"" + s.time + "\">";
         html += "<div class=\"sig-top\"><span class=\"sig-name sig-dir " + s.dir + "\">" + (s.dir === "bull" ? "▲ " : "▼ ") + esc(s.name) + "</span>";
         html += "<span class=\"sig-px\">" + fmtPrice(s.price);
-        if (!s.provisional) html += " <span class=\"sig-stars\">" + starText(s.stars) + "</span>";
+        if (!s.provisional) html += " <span class=\"sig-stars\">" + starText(s.stars) + "</span> <span class=\"sig-score\">" + (isFinite(s.score) ? s.score + "/100 " + esc(s.grade || "") : "") + "</span>";
         html += "</span></div>";
         html += "<div class=\"sig-meta\">" + fmtFull(s.time) + " · " + esc(state.tf) + " · " + esc(pairLabel(state.symbol));
         if (s.provisional) html += " · developing";
         else if (isFinite(s.lag)) html += " · confirmed " + s.lag + " bar" + (s.lag === 1 ? "" : "s") + " later";
         if (s.nextMoveLabel) html += " · " + esc(s.nextMoveLabel);
+        if (!s.provisional && isFinite(s.score)) html += " · Entry quality " + s.score + "/100 (" + esc(s.grade) + ")";
         html += "</div>";
         html += "<div class=\"sig-chips\">";
         if (s.forming) html += "<span class=\"mini-chip\">Forming</span>";
         if (s.reasons && s.reasons.length) {
           s.reasons.forEach(function (r) { html += "<span class=\"mini-chip\">" + esc(r) + "</span>"; });
-        } else {
+        }
+        if (!s.provisional && s.scoreReasons && s.scoreReasons.length) {
+          s.scoreReasons.forEach(function (r) { html += "<span class=\"mini-chip\">" + esc(r) + "</span>"; });
+        }
+        if ((!s.reasons || !s.reasons.length) && (s.provisional || !s.scoreReasons || !s.scoreReasons.length)) {
           html += "<span class=\"mini-chip\">" + esc(s.short) + "</span>";
         }
         html += "</div></button>";
