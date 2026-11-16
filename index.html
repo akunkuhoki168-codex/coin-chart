@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.2" />
+  <meta name="app-version" content="7.3" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>PUMP/USDT — Binance Spot</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
-  <script src="vendor/lightweight-charts.standalone.production.js?v=7.2"></script>
+  <script src="vendor/lightweight-charts.standalone.production.js?v=7.3"></script>
   <script>
     window.__chartLib = { tried: ["vendor"], ok: null };
     if (typeof LightweightCharts !== "undefined") window.__chartLib.ok = "vendor";
@@ -752,7 +752,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.2 swing buy-sell + 48h backtest -->
+  <!-- coin-chart v7.3 swing buy-sell + 48h backtest -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -840,7 +840,7 @@
         <div class="sheet-title-row">
           <div class="sheet-title">Settings</div>
         </div>
-        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.2 · Swing BUY / SELL · 48h backtest</div>
+        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.3 · Swing BUY / SELL · 48h backtest</div>
       </div>
       <div class="list" id="settings-body"></div>
     </section>
@@ -881,7 +881,7 @@
       ready: false, errors: [], live: false, trades: 0, symbol: "PUMPUSDT",
       coinsLoaded: false, coinCount: 0, marketLive: false,
       signals: 0, markers: 0, view: "chart", scanDone: 0, switched: [],
-      version: "7.2", mode: null, restBase: null, wsHost: null, polls: 0,
+      version: "7.3", mode: null, restBase: null, wsHost: null, polls: 0,
       lastError: null, restTried: [], restFailed: [], wsTried: [], wsState: "idle",
       lib: (window.__chartLib && window.__chartLib.ok) || null,
       connectSince: Date.now()
@@ -947,7 +947,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.2";
+    var APP_VERSION = "7.3";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -961,6 +961,9 @@
     ];
     var REST_TIMEOUT = 4000;
     var REST_TIMEOUT_BULKY = 8000;
+    // Conservative REST fallback cadence; WebSocket remains the primary feed.
+    var KLINE_POLL_MS = 3000;
+    var TICKER_POLL_MS = 30000;
     var WS_HOSTS = [
       "wss://data-stream.binance.vision:443",
       "wss://stream.binance.com:443",
@@ -2419,16 +2422,20 @@
       setStatus("live", "Live (polling)");
       if (!state.klinePollTimer) {
         pollKline();
-        state.klinePollTimer = setInterval(pollKline, 1000);
+        state.klinePollTimer = setInterval(pollKline, KLINE_POLL_MS);
       }
       startTickerPolling();
     }
     function startTickerPolling() {
       if (state.closed) return;
+      if (state.marketWs && state.marketWs.readyState === WebSocket.OPEN) return;
       if (!state.tickerPollTimer) {
         pollTickers();
-        state.tickerPollTimer = setInterval(pollTickers, 5000);
+        state.tickerPollTimer = setInterval(pollTickers, TICKER_POLL_MS);
       }
+    }
+    function stopTickerPolling() {
+      if (state.tickerPollTimer) { clearInterval(state.tickerPollTimer); state.tickerPollTimer = null; }
     }
     function stopPolling() {
       state.polling = false;
@@ -2457,7 +2464,8 @@
     }
     async function pollTickers() {
       if (state.closed || state._tickerPollInFlight) return;
-      if (!state.polling && state.marketWs && state.marketWs.readyState === WebSocket.OPEN) return;
+      // The all-market WebSocket already supplies these tickers; avoid duplicate REST polling.
+      if (state.marketWs && state.marketWs.readyState === WebSocket.OPEN) return;
       state._tickerPollInFlight = true;
       try {
         var res = await restGet("/ticker/24hr", REST_TIMEOUT_BULKY);
@@ -2717,6 +2725,7 @@
         if (state.marketConnectTimer) { clearTimeout(state.marketConnectTimer); state.marketConnectTimer = null; }
         state.marketAttempt = 0;
         state.marketFailures = 0;
+        stopTickerPolling();
       };
       ws.onmessage = function (ev) {
         var msg, arr, i, d, sym;
