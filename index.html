@@ -4,13 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.4" />
+  <meta name="app-version" content="7.5" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>PUMP/USDT — Binance Spot</title>
+  <meta name="description" id="page-description" content="Live Binance Spot chart with technical indicators, trading signals, and a 48-hour backtest." />
+  <title>Binance Spot Chart — Live Price & Trading Signals</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
   <script src="vendor/lightweight-charts.standalone.production.js?v=7.4"></script>
   <script>
@@ -752,7 +753,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.4 swing buy-sell + 48h backtest -->
+  <!-- coin-chart v7.5 dynamic coin title and description + swing buy-sell + 48h backtest -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -1810,7 +1811,10 @@
       var last = isFinite(t.last) ? t.last : (state.candles.length ? state.candles[state.candles.length - 1].close : NaN);
       var chg = isFinite(t.changePct) ? t.changePct : NaN;
       document.getElementById("pair").textContent = pairLabel(state.symbol);
-      document.title = pairLabel(state.symbol) + " — Binance Spot";
+      var activePair = pairLabel(state.symbol);
+      document.title = activePair + " — Binance Spot Chart & Trading Signals";
+      var pageDescription = document.getElementById("page-description");
+      if (pageDescription) pageDescription.setAttribute("content", "Live " + activePair + " Binance Spot chart with real-time price, technical indicators, buy/sell signals, and a 48-hour backtest.");
       document.getElementById("last").textContent = fmtPrice(last);
       document.getElementById("last").className = chg >= 0 ? "up" : "down";
       document.getElementById("change").textContent = isFinite(chg) ? fmtPct(chg) : "—";
