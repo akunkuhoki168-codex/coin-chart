@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0e11" />
-  <meta name="app-version" content="7.9" />
+  <meta name="app-version" content="7.10" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -13,7 +13,7 @@
   <meta name="description" id="page-description" content="Live Binance USD-M Futures chart with technical indicators, trading signals, and an adjustable 1–7 day backtest." />
   <title>Binance USD-M Futures Chart — Live Price & Trading Signals</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e11'/%3E%3Cpath d='M3 11 L7 6 L10 9 L13 4' stroke='%230ecb81' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
-  <script src="vendor/lightweight-charts.standalone.production.js?v=7.9"></script>
+  <script src="vendor/lightweight-charts.standalone.production.js?v=7.10"></script>
   <script>
     window.__chartLib = { tried: ["vendor"], ok: null };
     if (typeof LightweightCharts !== "undefined") window.__chartLib.ok = "vendor";
@@ -247,9 +247,12 @@
       font-size: 11px;
       color: var(--muted);
       flex: 0 0 auto;
-      white-space: nowrap;
+      line-height: 1.35;
+      max-height: 2.8em;
       overflow: hidden;
-      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
     #last-signal .buy { color: var(--up); font-weight: 700; }
     #last-signal .sell { color: var(--down); font-weight: 700; }
@@ -300,13 +303,16 @@
     }
     #backtest-panel {
       margin: 0 10px 8px;
-      padding: 8px 10px 10px;
+      padding: 8px 10px 12px;
       border: 1px solid var(--border);
       background: var(--panel);
       border-radius: 12px;
       flex: 0 0 auto;
-      max-height: min(56vh, 500px);
-      overflow: hidden;
+      max-height: min(64vh, 560px);
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -324,13 +330,13 @@
     .bt-opts {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px 12px;
+      gap: 6px 10px;
       align-items: center;
       font-size: 12px;
     }
     .bt-opts .check-row { margin: 0; font-size: 12px; }
     .bt-fee { color: var(--muted); display: flex; align-items: center; gap: 4px; }
-    .bt-fee input {
+    .bt-fee input, .bt-fee select {
       width: 58px;
       background: var(--bg);
       color: var(--text);
@@ -339,6 +345,7 @@
       padding: 4px 6px;
       font-size: 12px;
     }
+    .bt-fee select { width: auto; max-width: 92px; }
     .bt-status { font-size: 11px; color: var(--muted); }
     .bt-grid {
       display: grid;
@@ -363,12 +370,9 @@
     .bt-trades {
       font-size: 11px;
       font-variant-numeric: tabular-nums;
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      padding-bottom: 2px;
+      flex: 0 0 auto;
+      overflow: visible;
+      padding-bottom: 8px;
     }
     .bt-trade {
       display: grid;
@@ -753,7 +757,7 @@
   </style>
 </head>
 <body>
-  <!-- coin-chart v7.9 Binance USD-M Futures market data: REST + WebSocket -->
+  <!-- coin-chart v7.10 Binance USD-M Futures market data: REST + WebSocket -->
   <div id="app">
     <header id="header">
       <div id="header-inner">
@@ -782,7 +786,7 @@
       <div id="last-signal">Last: —</div>
       <div id="tf-bar">
         <div id="tf-row"></div>
-        <button type="button" class="chip" id="btn-backtest-48h" title="Run adjustable backtest" aria-label="Run backtest">2d Backtest</button>
+        <button type="button" class="chip" id="btn-backtest-48h" title="Backtest 2 days" aria-label="Run backtest">2d</button>
         <button type="button" class="chip" id="btn-filters-tf">Filters</button>
       </div>
       <div id="backtest-panel" hidden>
@@ -846,7 +850,7 @@
         <div class="sheet-title-row">
           <div class="sheet-title">Settings</div>
         </div>
-        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.9 · Binance USD-M Futures · 1–7d backtest</div>
+        <div class="sheet-sub">Sensitivity, indicators, and reset<br />Version 7.10 · Binance USD-M Futures · 1–7d backtest</div>
       </div>
       <div class="list" id="settings-body"></div>
     </section>
@@ -887,7 +891,7 @@
       ready: false, errors: [], live: false, trades: 0, symbol: "PUMPUSDT",
       coinsLoaded: false, coinCount: 0, marketLive: false,
       signals: 0, markers: 0, view: "chart", scanDone: 0, switched: [],
-      version: "7.9", mode: null, restBase: null, wsHost: null, polls: 0,
+      version: "7.10", mode: null, restBase: null, wsHost: null, polls: 0,
       lastError: null, restTried: [], restFailed: [], wsTried: [], wsState: "idle",
       lib: (window.__chartLib && window.__chartLib.ok) || null,
       connectSince: Date.now()
@@ -953,7 +957,7 @@
       } catch (e) {}
       return "";
     }
-    var APP_VERSION = "7.9";
+    var APP_VERSION = "7.10";
     var SSL_UP = "#00c3ff";
     var SSL_DOWN = "#ff0062";
     var SSL_GRAY = "#787b86";
@@ -3211,7 +3215,10 @@
       var btn = document.getElementById("btn-backtest-48h");
       var title = document.getElementById("bt-title");
       if (days) days.value = String(state.btDays || 2);
-      if (btn) btn.textContent = (state.btDays || 2) + "d Backtest";
+      if (btn) {
+        btn.textContent = (state.btDays || 2) + "d";
+        btn.title = "Backtest " + (state.btDays || 2) + " days";
+      }
       if (title) title.textContent = "Backtest · " + (state.btDays || 2) + " days";
       if (lo) lo.checked = !!state.btLongOnly;
       if (longTP) longTP.value = String(state.btLongTP); if (longSL) longSL.value = String(state.btLongSL);
@@ -3241,7 +3248,10 @@
       persistBacktestOpts();
       var backtestButton = document.getElementById("btn-backtest-48h");
       var backtestTitle = document.getElementById("bt-title");
-      if (backtestButton) backtestButton.textContent = state.btDays + "d Backtest";
+      if (backtestButton) {
+        backtestButton.textContent = state.btDays + "d";
+        backtestButton.title = "Backtest " + state.btDays + " days";
+      }
       if (backtestTitle) backtestTitle.textContent = "Backtest · " + state.btDays + " days";
       if (!state.btShowMarks) {
         state.btMarkers = [];
